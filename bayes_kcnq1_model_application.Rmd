@@ -1,0 +1,440 @@
+---
+title: "Bayes KCNQ1 Model Application"
+author: "Matthew O'Neill"
+date: "7/6/2022"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: false
+      # collapsed: true
+    smooth_scroll: true
+    code_folding: hide
+    highlight: zenburn #textmate
+    theme: flatly
+    # number_sections: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r preamble,include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("nnet")
+library("DBI")
+library("RSQLite")
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(caret)
+library(plotrix)
+library(glmnet)
+library(meta)
+library(reshape2)
+library(psych)
+require(Hmisc)
+library(tableone)
+library(wCorr)
+library(rms)
+library(boot)
+library(leaps)
+library(car)
+library(reticulate)
+library(rootSolve)
+library(pROC)
+library(wCorr)
+library(MALDIquant)
+library(tidyverse)      # data manipulation and visualization
+library(lubridate)      # easily work with dates and times
+library(fpp2)           # working with time series data
+library(zoo)            # working with time series data
+library(latex2exp)
+library(forestplot)
+library(ggplot2)
+
+source('func_dist_seq.R')
+load("KCNQ1_prepared_v15.RData") 
+
+# Include distances between residue centroids from structure of KCNQ1 PDB-ID: 6UZZ
+q1dist <- read.csv(file = "kcnq1_distances.csv", header = FALSE)
+
+```
+
+# Introduction
+
+This document describes our Bayesian penetrance estimation protocol for the KCNQ1-LQT1 genotype-phenotype relationship. We integrate variant-specific features to develop a prior probability of LQT1 manifestation. We update this prior using clinical phenotype counts from variant heterozygotes and population controls to yield a posterior. 
+
+In this RMD, we deploy these estimates to investigate variable penetrance among different channelopathies, compare Bayesian estimates to ClinVar annotations, export data for clinical and research use hosted at our Variant Browser, and export estimates to map onto structure. 
+
+# Model Construction
+
+## Data from Literature and Cohort Combined
+
+```{r}
+
+# Literature dataset where potentially overlapping carriers/heterozygotes are removed
+d <- lit.cohort.data[lit.cohort.data$mut_type == "missense",]
+
+# set initial weighting and penetrance
+d$weight = 1-1/(0.01+d$total_carriers)
+d$penetrance_lqt1 <- d$lqt1/d$total_carriers
+d[d$total_carriers < 1,"weight"] <- 0.000 # This is changed to "< 2" here to evaluate ROC-AUC of n=1 variants from the literature
+
+```
+
+
+## LQT1 empirical diagnosis probability prior
+Use observed LQT1 diagnosis probability to calculate "LQTS probability density" as described in previous publication. Plot diagnosis probability density versus residue
+
+```{r}
+
+# Mean squared error
+mse <- function(sm) {
+  mean((sm$residuals)^2*(sm$weights))
+}
+
+# Derive alpha and beta from weighted mean and MSE (estimated variance)
+estBetaParams <- function(mu, var) {
+  alpha <- ((1 - mu) / var - 1 / mu) * mu ^ 2
+  beta <- alpha * (1 / mu - 1)
+  return(params = list(alpha = alpha, beta = beta))
+}
+
+# Weighted mean to determine lqt1 penetrance empirical prior
+newdata = data.frame(wt=1)
+model <- lm(penetrance_lqt1 ~ 1, data=d, weights = d$weight)
+summary(model)
+p<-predict(model, newdata)
+dev<- mse(model) #p*(1-p)
+
+# Estimated shape parameters for lqt1 empirical prior
+alpha0 = estBetaParams(p,dev)$alpha
+beta0 = estBetaParams(p,dev)$beta
+print(paste("alpha0 = ", alpha0, "  beta0 = ", beta0))
+
+# Bayesian lqt1 penetrance estimates from empirical priors 
+# and observed affected/unaffected counts:
+d$lqt1_penetranceBayesian_initial <- (alpha0 + d[,"lqt1"])/((alpha0 + beta0 + d[,"total_carriers"]))
+d$lqt1_penetranceBayesian<-d$lqt1_penetranceBayesian_initial
+
+```
+
+## Calculate LQTS probability densities and annotate function and structural location
+With the updated empirical priors applied to carrier counts, calculate "LQTS probability density" as described in previous publication. !!! NOTE: since these data are truly the "best estimates" we include all variants in the calculation such that unique scores are by residue not by variant.
+
+
+```{r, include = FALSE}
+# Use this model to evaluate the method - not using here as we want 'best guess' for applications
+
+# MODEL 1 - this method for evaluations - Spearman, 10-fold, and Briers 
+#q1.covariates <- q1.covariates[!is.na(q1.covariates$resnum), ]
+#q1.covariates[, "lqt1_dist"]<-NA
+#q1.covariates[, "lqt1_dist_weight"]<-NA
+#ld<-0
+#for(rec in 1:nrow(q1.covariates)){
+#print(rec)
+#q1.covariates[rec,c("lqt1_dist", "lqt1_dist_weight")] <- funcdist(q1.covariates[rec, "resnum"], #q1.covariates[rec, "var"], d[!is.na(d$total_carriers) & d$total_carriers>0 & d$mut_type != #"nonsense",], q1dist, "penetrance_lqt1", "sigmoid", 7)
+#}
+
+# MODEL 2 - this method for future predictions! 
+
+tmp<-data.frame(resnum=NA, lqt1_dist=NA)
+q1.covariates$lqt1_dist<-NA
+q1.covariates$lqt1_dist_weight<-NA
+for(rec in seq(2,676,1)){
+  ld <- funcdist(rec, "var", d, q1dist, "penetrance_lqt1", "sigmoid", 7)
+      q1.covariates[!is.na(q1.covariates$resnum) & q1.covariates$resnum == rec, "lqt1_dist"] <- ld[1]
+      q1.covariates[!is.na(q1.covariates$resnum) & q1.covariates$resnum == rec, "lqt1_dist_weight"] <- ld[2]     
+      tmp[rec,c("lqt1_dist", "resnum")]<-c(ld[1], rec)
+}
+
+```
+
+## Merge Clinical Dataframe with Covariate Dataframe
+
+```{r}
+
+q1.covariates <- distinct(q1.covariates, var, .keep_all = TRUE)
+q1.covariates[is.na(q1.covariates$mut_type), "mut_type"] <- "missense"
+d$resnum <- as.integer(d$resnum)
+d <- merge(d, q1.covariates, all = TRUE)
+d[is.na(d$total_carriers), "total_carriers"] <- 0
+d <- unique(d)
+
+```
+
+## Calculate EM priors and posteriors for all variants
+
+```{r, echo=T, results='hide'}
+
+# Assign p_mean_w to empirical penetrance. The reassignment to ensures
+# p_mean_w does not contain "NA"s.
+d[is.na(d$lqt1_penetranceBayesian),"lqt1_penetranceBayesian"] <- alpha0/(alpha0+beta0)
+d$p_mean_w <- d$lqt1_penetranceBayesian
+
+# reassign "NA"s to 0 in heterozygote counts to enable updating during EM iterations
+d[is.na(d$total_carriers),"total_carriers"] <- 0 
+d[is.na(d$lqt1),"lqt1"] <- 0 
+d[is.na(d$unaff),"unaff"] <- 0 
+
+regression <- function(dv, pivs, nivs, data) {
+  # run a linear model with text arguments for dv and ivs
+  piv_string <- paste(pivs, collapse=" + ")
+  niv_string <- paste(nivs, collapse=" - ")
+  if(niv_string!="") iv_string <- paste(piv_string, " - ", niv_string, sep = "")
+  if(niv_string=="") iv_string <- paste(piv_string)
+  #print(iv_string)
+  regression_formula <- as.formula(paste(dv, iv_string, sep=" ~ "))
+  #print(regression_formula)
+  glm(regression_formula, data, family = quasibinomial(link = "logit"), weights = data[,"weight"])
+}
+
+# solve for alpha and beta in Beta distribution
+solab <- function(mean, variance){
+  alpha <- (mean^2 * (1-mean) - variance * mean)/variance
+  beta <- alpha * (1 / mean - 1)
+  return(c(alpha,beta))
+}
+
+covariates <- c("blast_pssm", "revel_score", "cardiacboost", "hm_peak", "lqt1_dist")
+delta <- 10
+count <- 0
+tmp<-d[!is.na(d$mut_type) & d$mut_type=="missense" & !is.na(d$lqt1_dist),]
+while(delta > 1 & count < 25){ # 5 is roughly a change of 0.5%
+  print(paste(delta, count))
+  count <- count + 1
+  alpha_f <- NULL
+  beta_f <- NULL
+  
+  for(i in 1:nrow(tmp)){
+  newdata = data.frame(var=tmp[i,"var"])
+  newdata[covariates] <- tmp[i,covariates]
+  model <- regression("p_mean_w", covariates, 
+                      colnames(newdata)[colSums(is.na(newdata))>0], tmp)
+  mean_f <- predict(model, newdata, type = "response")
+  variance_f <- (predict(model, newdata,se.fit = T, type = "response")$se.fit)^2
+  alpha <- solab(mean_f,variance_f)[1]
+  beta <- solab(mean_f,variance_f)[2]
+  tmp[i,"prior_mean_w"] <- mean_f
+  if(alpha<0.01 | beta<0.01){
+    alpha_f[i]=alpha0
+    beta_f[i]=beta0
+  }else{
+    alpha_f[i]=alpha
+    beta_f[i]=beta
+  }
+  }
+  new_mean <- (alpha_f + tmp$lqt1)/(alpha_f + beta_f + tmp$total_carriers)
+  
+  delta <- sum(abs(new_mean-tmp$p_mean_w))
+  
+  tmp$p_mean_w <- new_mean
+  print(delta)
+}
+
+for (variant in tmp$var){t<-NA;t<-tmp[tmp$var == variant, c("prior_mean_w", "p_mean_w")]; d[d$var == variant, c("prior_mean_w", "p_mean_w")] <- t[1,] }
+
+for (variant in mut_type$var){print(variant);
+  if (!is.na(match(variant,d$var)) & !is.na(match(variant, lit.cohort.data$var))) {
+    d[d$var == variant, c("lqt1", "unaff","total_carriers")]<-lit.cohort.data[lit.cohort.data$var == variant, c("lqt1", "unaff","total_carriers")] # removed "gnomAD","gnomAD_seq"
+    }
+}
+
+# when tuning parameter is 11, equivalent to 10 variant heterozygotes
+
+prior_mean <- d$p_mean_w
+variance <- prior_mean*(1-prior_mean)
+variance <- variance / 11
+ind_a <- seq(1, length(variance),1)
+ind_b <- seq(length(variance)+1, length(variance)*2,1)
+alpha <- solab(prior_mean,variance)[ind_a]
+beta <- solab(prior_mean,variance)[ind_b]
+
+new_mean <- (alpha + d$lqt1)/(alpha + beta + d$total_carriers)
+d$p_mean_w <- new_mean
+d$prior_mean <- (alpha)/(alpha + beta)
+d[d$total_carriers<1,"p_mean_w"]<-d[d$total_carriers<1,"prior_mean_w"]
+
+d$alpha <- alpha
+d$beta <- beta
+
+# Save literature data for all variants
+# save as regular vs evalset depending on LQT1 dist method! 
+save(d,file = "lit_plus_cohort_checkpoint_application.RData")
+
+
+```
+
+
+# Penetrance Histograms 
+
+```{r}
+
+# Produce histograms for Figure 4 - take only variants with observed heterozygotes
+
+d <- d[d$total_carriers >0, ]
+hist(d$penetrance_lqt1) # Figure 4A
+hist(d$p_mean_w, breaks = 20) # Figure 4B
+quantile(d$p_mean_w) # Figure 4F
+
+```
+
+# Variant Browser Data
+
+```{r}
+
+# Here we output data to be hosted on the variant browser to facilitate research and clinical applications 
+
+# Reload data after last analysis 
+
+rm(d)
+load('lit_plus_cohort_checkpoint_application.RData')
+
+# annotate structural location (hotspot)
+
+d$Structure<-NA
+d[!is.na(d$lqt1_dist) & d$lqt1_dist<0.1,"Structure"]<-"Non_Hotspot"
+d[!is.na(d$lqt1_dist) & d$lqt1_dist>=0.1 & d$lqt1_dist<0.4,"Structure"]<-"Mild_Hotspot"
+d[!is.na(d$lqt1_dist) & d$lqt1_dist>=0.4,"Structure"]<-"Hotspot"
+
+# annotate functional perturbation
+
+d$Function<-NA
+d[!is.na(d$ht_peak) & d$ht_peak<0.25,"Function"]<-"Severe Dominant LOF"
+d[!is.na(d$ht_peak) & d$ht_peak<0.5 & d$ht_peak>=0.25,"Function"]<-"Dominant LOF"
+d[!is.na(d$ht_peak) & d$ht_peak>=0.5 & d$ht_peak<0.75,"Function"]<-"LOF"
+d[!is.na(d$ht_peak) & d$ht_peak>=0.75 & d$ht_peak<1.25,"Function"]<-"Normal"
+d[!is.na(d$ht_peak) & d$ht_peak>=1.25,"Function"]<-"GOF"
+
+data <- d
+
+# Use CardiacBoost dataframe for merging genomic coordinates with each variant 
+
+cb<-read.table("Covariates/cardiacboost_arm_all_possible_mutations-adj.csv", sep = "\t", header = TRUE)
+cb<-cb[cb$gene=="KCNQ1",]
+cb$var<-as.character(paste(cb$var))
+cb_cDNA <- cb[,c("var", "HGVSc", "pos")]
+
+final_data <- merge(data, cb_cDNA, by.x = "var", all = TRUE)
+
+var_browser_q1 <- final_data[,c("pos", "HGVSc", "var", "resnum", "lqt1", "total_carriers", "Function", "Structure", "p_mean_w")]
+
+var_browser_q1 <- var_browser_q1[complete.cases(var_browser_q1$HGVSc), ]
+
+write.csv(var_browser_q1, "variant_browser_v2.csv")
+
+var_browser_in_silico <- final_data[,c("var", "provean_score", "revel_score", "blast_pssm", "pph2_prob", "lqt1_dist")]
+
+var_browser_in_silico <- var_browser_in_silico[complete.cases(var_browser_in_silico$revel_score), ]
+
+write.csv(var_browser_in_silico, "var_browser_in_silico.csv")
+
+```
+
+##ClinVar Analysis
+
+
+```{r}
+
+# Reload data after last analysis 
+rm(d)
+load('lit_plus_cohort_checkpoint_application.RData')
+
+# Here we compare the observed and Bayesian penetrance against ClinVar annotations as presented in Figure 5
+
+annotation <- read.csv("data/Covariates/KCNQ1_clinvar.csv", header = TRUE)
+d2 <- data.frame(annotation)
+d3 <- merge(d, d2, by = "var")
+d3 <- d3[, c("clinvar", "p_mean_w", "penetrance_lqt1")]
+
+# Plot Bayesian penetrence 
+
+ggplot(d3, aes(x = clinvar, y = p_mean_w)) + geom_dotplot(binaxis='y', stackdir='center', dotsize = 0.75) + ylim(0, 1)
+
+# Plot observed penetrence 
+
+ggplot(d3, aes(x = clinvar, y = penetrance_lqt1)) + geom_dotplot(binaxis='y', stackdir='center', dotsize = 0.75) + ylim(0, 1)
+
+```
+
+
+## Structural Penetrance Data
+
+```{r}
+
+# Generate .csv for pymol sessions to model LQT1 penetrance on protein structure as shown in Figure 6
+
+rm(d)
+load('lit_plus_cohort_checkpoint_application.RData')
+
+structure_penetrance <- d
+structure_penetrance <- structure_penetrance[,c("var", "resnum", "p_mean_w")]
+
+```
+
+
+## Forest Plots 
+
+```{r Forest Plots, results='hide'}
+
+# Make forest plots for prospective use and for Figure 3 
+
+library(forestplot)
+
+d<-d[d$total_carriers>0 & d$mut_type!="nonsense",]  
+d<-d[!is.na(d$var),]
+
+mean.post <- (d$alpha + d$lqt1)/(d$alpha+d$beta+d$total_carriers)
+mean.prior <- (d$alpha)/(d$alpha+d$beta)
+
+lower.prior <- qbeta(0.025,d$alpha,d$beta)
+higher.prior <- qbeta(0.975,d$alpha,d$beta) 
+
+lower.post <- qbeta(0.025,d$alpha+d$lqt1,d$beta+d$total_carriers-d$lqt1)
+higher.post <- qbeta(0.975,d$alpha+d$lqt1,d$beta+d$total_carriers-d$lqt1) 
+
+forest.data.post <- data.frame(variant = d$var, mean=mean.post,
+                          lower=lower.post, higher=higher.post, resnum=d$resnum, tc=d$total_carriers, lqt1=d$lqt1)
+forest.data.post$group<-"posterior"
+
+forest.data.prior <- data.frame(variant = d$var, mean=mean.prior,
+                          lower=lower.prior, higher=higher.prior, resnum=d$resnum, tc=d$total_carriers, lqt1=d$lqt1)
+forest.data.prior$group<-"prior"
+
+### Break here for Figure specific script! 
+
+
+forest.data<-rbind(forest.data.post, forest.data.prior)
+forest.data<-forest.data[order(forest.data$resnum, forest.data$variant),]
+forest.data$label<-""
+forest.data[forest.data$group=="posterior","label"]<-paste(forest.data[forest.data$group=="posterior","lqt1"], "/", forest.data[forest.data$group=="posterior","tc"])
+
+#define colours for dots and bars
+dotCOLS = c("#866D4B","#000000")
+barCOLS = c("#FFFFFF","#FFFFFF")
+
+plotg <- function(a,b){
+  fd<-forest.data[a:b,]
+  png( paste("images/ForestPlots", a, "-",b,"pics.png",sep=""),res=300,height=10,width=10,units="in")
+  p<-ggplot(fd, aes(x=reorder(variant,-resnum), y=mean, ymin=lower, ymax=higher, col=group, fill=group)) + 
+  geom_text(data=fd, aes(x=reorder(variant,-resnum), label=label)) +
+#specify position here
+  geom_linerange(size=2,position=position_dodge(width = 1)) +
+  geom_hline(yintercept=1, lty=1) +
+  geom_hline(yintercept=0, lty=1) +
+#specify position here too
+  geom_point(size=2, shape=21, colour="white", stroke = 0.5,position=position_dodge(width = 1)) +
+  scale_fill_manual(values=barCOLS)+
+  scale_color_manual(values=dotCOLS)+
+  scale_y_continuous(name="LQT1 Diagnosis Probability", limits = c(0, 1)) +
+  coord_flip() +
+  theme_minimal()
+  print(p)
+  dev.off() 
+}
+
+sapply(0:30*50+1,function(x) plotg(x,x+49) )
+
+```
+

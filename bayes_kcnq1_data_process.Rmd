@@ -1,0 +1,300 @@
+---
+title: "Bayes KCNQ1 Data Process"
+author: "Matthew O'Neill and Brett Kroncke"
+date: "6/7/2022"
+output: 
+   html_document:
+     toc: true
+     toc_depth: 4
+     toc_float: false
+        #collapse: true
+     smooth_scroll: true
+     code_folding: hide
+     highlight: zenburn #textmate?
+     theme: flatly
+     #number_sections: true
+editor_options: 
+   chunk_output_type: console
+---
+
+
+```{r preamble, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+source('func_dist_seq.R')
+
+library("nnet")
+library("DBI")
+library("RSQLite")
+library(dplyr)
+library(ggplot2)
+#library(ggpubr)
+library(caret)
+library(plotrix)
+library(glmnet)
+library(meta)
+library(reshape2)
+library(psych)
+require(Hmisc)
+library(tableone)
+library(wCorr)
+library(rms)
+library(boot)
+library(leaps)
+library(car)
+library(reticulate)
+library(rootSolve)
+library(pROC)
+library(MALDIquant)
+library(tidyverse)      # data manipulation and visualization
+library(lubridate)      # easily work with dates and times
+library(fpp2)           # working with time series data
+library(zoo)            # working with time series data
+library(latex2exp)
+library(forestplot)
+library(ggplot2)
+
+
+```
+
+# Introduction
+This document describes an estimate of LQT1 penetrance from *KCNQ1* missense variants. We incorporate structure, function, and *in silico* predictive models to inform Bayesian penetrance priors. We use this data as input to develop a model of KCNQ1 variant penetrance, and to then investigate patterns of penetrance among four genetic arrhythmias. 
+
+## Data Preparation
+Data are read in, cleaned, and predictive features are prepared for analysis.
+Data are then saved to the `RData` format for use in the Evaluation and Application files.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r data prep, eval = TRUE}
+
+# Load curated literature data as described in the methods 
+
+load("/Users//mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/LitFinal_v7.RData")
+
+d <- lit_final
+
+missense <- c("S", "T", "V", "D", "P", "E", "G",  "Y", "R", "W", 
+              "F", "H", "N", "A", "K", "Q", "L", "I", "C", "M", 
+              "del", "LL", "dup", "MM", "Del", "Ins", "ins")
+
+nonsense <- c("X", "RX","PX", "WX", "TX", "CX", "GX", "VX", 
+              "QX", "AX", "EX", "KX", "IX", "fsX", "insGAG", 
+              "sp", "", "fs", "splice", "LX", "-")
+
+d$mut_type <- "nonsense"
+d[d$mutAA %in% missense, "mut_type"] <- "missense"
+lit.nonoverlap.data <- d[,c("var", "resnum", "natAA", "mutAA", "lqt1", "total_carriers", "mut_type")] 
+lit.nonoverlap.data$unaff <- lit.nonoverlap.data$total_carriers - lit.nonoverlap.data$lqt1
+lit.nonoverlap.data[as.character(lit.nonoverlap.data$mutAA) == as.character(lit.nonoverlap.data$natAA),"mut_type"] <- "synonymous"
+
+
+```
+
+## Read in Cohort Data
+
+```{r Cohort Data, echo = T, results = 'hide'}
+
+
+# Read in data from each site - manual review removes potential overlap from previously published probands
+
+japan.data <- read.csv("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/Japan_cohort-v1.csv")
+
+load("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/KCNQ1_Italy_v3.RData")
+italy.data <- italy_final
+
+load("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/KCNQ1_Paris_v2.RData")
+paris.data <- paris_final
+
+# Combine all individuals from cohort by missense variants
+
+cohort.data <- as.data.frame(unique(c(as.character(paris.data$var), as.character(italy.data$var), as.character(japan.data$var))))
+names(cohort.data) <- "var"
+lit.cohort.data <- as.data.frame(unique(c(as.character(d$var), as.character(cohort.data$var))))
+names(lit.cohort.data) <- "var" # lit.cohort.data has the greatest number of variants. 
+mut_type <- as.data.frame(c(as.character(d$mutAA), as.character(paris.data$mutAA), as.character(italy.data$mutAA), as.character(japan.data$mutAA)))
+native <- as.data.frame(c(as.character(d$natAA), as.character(paris.data$natAA), as.character(italy.data$natAA), as.character(japan.data$natAA)))
+resnum <- as.data.frame(c(as.character(d$resnum), as.character(paris.data$resnum), as.character(italy.data$resnum), as.character(japan.data$resnum)))
+variants <- as.data.frame(c(as.character(d$var), as.character(paris.data$var), as.character(italy.data$var), as.character(japan.data$var)))
+names(variants) <- "var"
+names(mut_type) <- "mutAA"
+names(native) <- "natAA"
+names(resnum) <- "resnum"
+mut_type$mut_type <- "nonsense"
+mut_type[mut_type$mutAA %in% missense, "mut_type"] <- "missense"
+mut_type[,c("var","natAA","resnum")] <- c(as.character(variants$var), as.character(native$natAA), as.character(resnum$resnum))
+mut_type$resnum <- as.numeric(mut_type$resnum)
+mut_type[mut_type$mutAA == mut_type$natAA & !is.na(mut_type$mutAA) & !is.na(mut_type$natAA), "mut_type"] <- "synonymous"
+mut_type <- unique(mut_type)
+
+
+# Combine all affected and unaffected individuals who carry the same variant
+
+for (variant in cohort.data$var){
+  lqt1_I <- 0
+  unaff_I <- 0
+  lqt1_P <- 0
+  unaff_P <- 0 
+  lqt1_J <- 0
+  unaff_J <- 0
+  if (!is.na(match(variant,italy.data$var))) {
+    print(variant)
+    lqt1_I<-italy.data[italy.data$var == variant,"lqt1_I"]
+    print(lqt1_I)
+    unaff_I<-italy.data[italy.data$var == variant,"total_carriers_I"] - italy.data[italy.data$var == variant,"lqt1_I"]
+  }
+  if (!is.na(match(variant,paris.data$var))) {
+    print(variant)
+    lqt1_P<-paris.data[paris.data$var == variant,"lqt1_P"]
+    print(lqt1_P)
+    unaff_P<-paris.data[paris.data$var == variant,"total_carriers_P"] - paris.data[paris.data$var == variant,"lqt1_P"]
+  }
+  if (!is.na(match(variant,japan.data$var))) {
+    print(variant)
+    lqt1_J<-japan.data[japan.data$var == variant,"lqt1_J"]
+    print(lqt1_J)
+    unaff_J<-japan.data[japan.data$var == variant,"total_carriers_J"] - japan.data[japan.data$var == variant,"lqt1_J"]
+  }
+  lqt1 <- lqt1_I + lqt1_P + lqt1_J
+  unaff <- unaff_I + unaff_P + unaff_J
+  cohort.data[cohort.data$var == variant, "lqt1"] <- lqt1
+  cohort.data[cohort.data$var == variant, "unaff"] <- unaff
+  cohort.data[cohort.data$var == variant, "total_carriers"] <- unaff + lqt1
+}
+
+
+```
+
+## Combine individuals from cohort and the literature
+
+```{r Combine Data, echo = T, results = 'hide'}
+
+for (variant in lit.cohort.data$var){
+  lqt1_c <- 0 
+  lqt1_l <- 0 
+  unaff_c <- 0 
+  unaff_l <- 0 
+  if (!is.na(match(variant,d$var))) {
+    print(variant)
+    lqt1_l <- d[d$var == variant,"lqt1"]
+    print(lqt1_l)
+    unaff_l <- d[d$var == variant,"total_carriers"] - d[d$var == variant,"lqt1"]
+  } 
+  if (!is.na(match(variant,cohort.data$var))) {
+    print(variant)
+    lqt1_c <- cohort.data[cohort.data$var == variant,"lqt1"]
+    print(lqt1_l)
+    unaff_c <- cohort.data[cohort.data$var == variant,"unaff"]
+  }
+  lqt1 <- lqt1_l + lqt1_c
+  unaff<- unaff_l + unaff_c
+  lit.cohort.data[lit.cohort.data$var == variant,"lqt1"] <- lqt1
+  lit.cohort.data[lit.cohort.data$var == variant,"unaff"] <- unaff
+  lit.cohort.data[lit.cohort.data$var == variant,"total_carriers"] <- unaff + lqt1
+}
+
+# Merge dataframes 
+
+cohort.data <- unique(merge(cohort.data,mut_type,all = TRUE))
+lit.cohort.data <- unique(merge(lit.cohort.data,mut_type,all = TRUE))
+
+# Remove variants with 0 carriers
+
+cohort.data <- cohort.data[cohort.data$total_carriers>0 & !is.na(cohort.data$total_carriers),]
+lit.cohort.data <- lit.cohort.data[lit.cohort.data$total_carriers>0 & !is.na(lit.cohort.data$mut_type),]
+
+```
+
+
+## Assembly of in silico covariates and functional data
+
+```{r in silico and functional}
+
+# Load in silico covariates
+
+AAs<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","D","E","X")
+AA2<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","D","E")
+
+#Cardiac boost data
+
+cb<-read.table("Covariates/cardiacboost_arm_all_possible_mutations-adj.csv", sep = "\t", header = TRUE)
+cb<-cb[cb$gene=="KCNQ1",]
+cb$var<-as.character(paste(cb$var))
+cb$mut_type<-"missense"
+cb<-cb[,c("pathogenicity","var","mut_type")] 
+names(cb)[1]<-"cardiacboost"
+
+# PSSM data 
+
+pssm<-read.table("covariates/EMBL_EBI_KCNQ1_PSSM.txt", sep = "", header = TRUE)
+pssm_clean <- pssm[,c(1:22)]
+pssm_melt<-melt(data = pssm_clean, id.vars = c("resnum", "wtAA"), measure.vars = AA2, variable.name = "mutAA", value.name = "blast_pssm")
+
+# PolyPhen2 Data
+
+pph2<-read.csv("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/data/Covariates/pph2-full_kcnq1.txt", sep = '\t', strip.white = TRUE)
+pph2_kcnq1_adj <- pph2[,c("pos", "aa1", "aa2", "pph2_class", "pph2_prob", "pph2_FPR", "pph2_TPR", "pph2_FDR")]
+names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "pos"] <- "resnum"
+names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa1"] <- "natAA"
+names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa2"] <- "mutAA"
+
+# Provean
+
+prov_kcnq1 <- read.table("Covariates/Provean_and_SIFT_KCNQ1.tsv", sep = '\t', header = FALSE)
+prov_kcnq1$var <- paste(prov_kcnq1$V5, prov_kcnq1$V4, prov_kcnq1$V6, sep = '')
+names(prov_kcnq1) <- c("number", "ENSP1", "ENSP2", "Residue", "native", "mutant", "score", "class", "random", "random1", "random2", "consequence", "score1", "score2", "var")
+prov_kcnq1_format <- prov_kcnq1[,c("var", "score")]
+names(prov_kcnq1_format)[names(prov_kcnq1_format) == "score"] <- "provean_score"
+
+# Revel
+
+load("revel.RData")
+revel <- revel_kcnq1
+names(revel) <- c("var","revel_score")
+
+
+# Combine in silico predictors into a single dataframe
+
+in.silico <- merge(pph2_kcnq1_adj, pssm_melt, all = TRUE)
+in.silico <- unique(in.silico)
+in.silico <- in.silico[!is.na(in.silico$pph2_class),] # removes synonymous variant from list 
+
+in.silico$var <- paste(in.silico$natAA, in.silico$resnum, in.silico$mutAA, sep = "")
+in.silico <- merge(cb, in.silico, all = TRUE)
+in.silico <- unique(in.silico)
+in.silico <- merge(in.silico, prov_kcnq1_format, all = TRUE)
+in.silico <- unique(in.silico)
+in.silico <- merge(in.silico, revel, all = TRUE)
+in.silico <- unique(in.silico)
+in.silico <- in.silico[,c("var", "resnum", "pph2_prob", 
+"blast_pssm", "provean_score", "revel_score", "cardiacboost", "mut_type")]
+
+# Only take one entry per variant! 
+
+in.silico <- distinct(in.silico, var, .keep_all = TRUE)
+
+
+
+# Curated Functional Data from Syncropatch and Manual Patchclamp data 
+
+q1.function <- read.csv("data/Covariates/KCNQ1_functional_data_trimmed_v2.csv", header=TRUE, stringsAsFactors=FALSE)
+
+# make numeric here
+
+#q1.function <- lapply(q1.function[,2:9], as.numeric)
+
+# merge with in silico list
+
+q1.covariates <- merge(in.silico, q1.function, all=TRUE)
+
+# May optionally take only SNV data using REVEL subset - here we keep all 
+
+#q1.covariates <- q1.covariates[!is.na(q1.covariates$revel_score), ]
+
+save(cohort.data, q1.covariates, lit.cohort.data, lit.nonoverlap.data, mut_type, file="KCNQ1_prepared_v16.RData")
+
+```
+
+
