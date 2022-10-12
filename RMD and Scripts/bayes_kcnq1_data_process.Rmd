@@ -23,6 +23,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 source('func_dist_seq.R')
 
+source('../RMD and Scripts/func_dist_seq.R')
+
 library("nnet")
 library("DBI")
 library("RSQLite")
@@ -74,6 +76,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 load("/Users//mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/LitFinal_v7.RData")
 
+load("../Heterozygote Data/LitFinal_v7.RData")
 d <- lit_final
 
 missense <- c("S", "T", "V", "D", "P", "E", "G",  "Y", "R", "W", 
