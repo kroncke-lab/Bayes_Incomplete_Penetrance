@@ -21,7 +21,9 @@ editor_options:
 ```{r preamble, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+setwd("/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/")
 source('func_dist_seq.R')
+
 
 source('../RMD and Scripts/func_dist_seq.R')
 
