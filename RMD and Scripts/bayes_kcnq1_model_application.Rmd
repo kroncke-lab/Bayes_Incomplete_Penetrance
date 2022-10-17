@@ -45,25 +45,30 @@ library(rootSolve)
 library(pROC)
 library(wCorr)
 library(MALDIquant)
-library(tidyverse)      # data manipulation and visualization
-library(lubridate)      # easily work with dates and times
-library(fpp2)           # working with time series data
-library(zoo)            # working with time series data
+library(tidyverse)      
+library(lubridate)     
+library(fpp2)          
+library(zoo)            
 library(latex2exp)
 library(forestplot)
 library(ggplot2)
+library(caret)
 
-source('func_dist_seq.R')
-load("KCNQ1_prepared_v15.RData") 
+#set working directory
+setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
+source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
+
+# Dataset from Bayes Processing RMD
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/KCNQ1_prepared_data') 
 
 # Include distances between residue centroids from structure of KCNQ1 PDB-ID: 6UZZ
-q1dist <- read.csv(file = "kcnq1_distances.csv", header = FALSE)
+q1dist <- read.csv(file = '~/Desktop/Bayes_Incomplete_Penetrance/Covariates/kcnq1_distances.csv', header = FALSE)
 
 ```
 
 # Introduction
 
-This document describes our Bayesian penetrance estimation protocol for the KCNQ1-LQT1 genotype-phenotype relationship. We integrate variant-specific features to develop a prior probability of LQT1 manifestation. We update this prior using clinical phenotype counts from variant heterozygotes and population controls to yield a posterior. 
+This document describes our Bayesian penetrance estimation protocol for the KCNQ1-LQT1 genotype-phenotype relationship.  We build the model based on observed heterozygote phenotypes and variant specific features, including function, structure, and in silico predictions.
 
 In this RMD, we deploy these estimates to investigate variable penetrance among different channelopathies, compare Bayesian estimates to ClinVar annotations, export data for clinical and research use hosted at our Variant Browser, and export estimates to map onto structure. 
 
@@ -125,19 +130,6 @@ With the updated empirical priors applied to carrier counts, calculate "LQTS pro
 
 
 ```{r, include = FALSE}
-# Use this model to evaluate the method - not using here as we want 'best guess' for applications
-
-# MODEL 1 - this method for evaluations - Spearman, 10-fold, and Briers 
-#q1.covariates <- q1.covariates[!is.na(q1.covariates$resnum), ]
-#q1.covariates[, "lqt1_dist"]<-NA
-#q1.covariates[, "lqt1_dist_weight"]<-NA
-#ld<-0
-#for(rec in 1:nrow(q1.covariates)){
-#print(rec)
-#q1.covariates[rec,c("lqt1_dist", "lqt1_dist_weight")] <- funcdist(q1.covariates[rec, "resnum"], #q1.covariates[rec, "var"], d[!is.na(d$total_carriers) & d$total_carriers>0 & d$mut_type != #"nonsense",], q1dist, "penetrance_lqt1", "sigmoid", 7)
-#}
-
-# MODEL 2 - this method for future predictions! 
 
 tmp<-data.frame(resnum=NA, lqt1_dist=NA)
 q1.covariates$lqt1_dist<-NA
@@ -152,6 +144,7 @@ for(rec in seq(2,676,1)){
 ```
 
 ## Merge Clinical Dataframe with Covariate Dataframe
+Work with 1 dataframe of all variant data
 
 ```{r}
 
@@ -164,7 +157,8 @@ d <- unique(d)
 
 ```
 
-## Calculate EM priors and posteriors for all variants
+## Calculate Bayesian priors and posteriors for all variants
+Update the empirical posteriors to generate Bayesian priors and posteriors. Additional details available in the Supplemental Methods. 
 
 ```{r, echo=T, results='hide'}
 
@@ -268,10 +262,11 @@ save(d,file = "lit_plus_cohort_checkpoint_application.RData")
 
 
 # Penetrance Histograms 
+Here we construct the penetrance histograms that are shown in Figure 3 of the manuscript. We look at observed and Bayesian penetrance, highlighting the shortcomings of using observed penetrance when only few heterozygotes are clinically ascertained.  
 
 ```{r}
 
-# Produce histograms for Figure 4 - take only variants with observed heterozygotes
+# Produce histograms for Figure 3 - take only variants with observed heterozygotes
 
 d <- d[d$total_carriers >0, ]
 hist(d$penetrance_lqt1) # Figure 4A
@@ -281,15 +276,15 @@ quantile(d$p_mean_w) # Figure 4F
 ```
 
 # Variant Browser Data
+Here we generate the data that are used in our online variantbrowser.org - this site contains the complete dataset for all variants in an interactive format. 
 
 ```{r}
 
 # Here we output data to be hosted on the variant browser to facilitate research and clinical applications 
-
 # Reload data after last analysis 
 
 rm(d)
-load('lit_plus_cohort_checkpoint_application.RData')
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 # annotate structural location (hotspot)
 
@@ -311,62 +306,54 @@ data <- d
 
 # Use CardiacBoost dataframe for merging genomic coordinates with each variant 
 
-cb<-read.table("Covariates/cardiacboost_arm_all_possible_mutations-adj.csv", sep = "\t", header = TRUE)
+cb<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
 cb<-cb[cb$gene=="KCNQ1",]
 cb$var<-as.character(paste(cb$var))
 cb_cDNA <- cb[,c("var", "HGVSc", "pos")]
-
 final_data <- merge(data, cb_cDNA, by.x = "var", all = TRUE)
-
 var_browser_q1 <- final_data[,c("pos", "HGVSc", "var", "resnum", "lqt1", "total_carriers", "Function", "Structure", "p_mean_w")]
-
 var_browser_q1 <- var_browser_q1[complete.cases(var_browser_q1$HGVSc), ]
-
 write.csv(var_browser_q1, "variant_browser_v2.csv")
-
 var_browser_in_silico <- final_data[,c("var", "provean_score", "revel_score", "blast_pssm", "pph2_prob", "lqt1_dist")]
-
 var_browser_in_silico <- var_browser_in_silico[complete.cases(var_browser_in_silico$revel_score), ]
-
 write.csv(var_browser_in_silico, "var_browser_in_silico.csv")
 
 ```
 
-##ClinVar Analysis
-
+#ClinVar Analysis
+We comparte categorical penetrance of variants among ClinVar categories with the Bayesian penetrance estiamtes derived from our method. This analysis highlights the high degree of incomplete penetrance, even among Pathogenic-annotated ClinVar variants. 
 
 ```{r}
 
 # Reload data after last analysis 
 rm(d)
-load('lit_plus_cohort_checkpoint_application.RData')
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
-# Here we compare the observed and Bayesian penetrance against ClinVar annotations as presented in Figure 5
+# Here we compare the observed and Bayesian penetrance against ClinVar annotations as presented in Figure 4
 
-annotation <- read.csv("data/Covariates/KCNQ1_clinvar.csv", header = TRUE)
+annotation <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_clinvar.csv', header = TRUE)
 d2 <- data.frame(annotation)
 d3 <- merge(d, d2, by = "var")
 d3 <- d3[, c("clinvar", "p_mean_w", "penetrance_lqt1")]
 
 # Plot Bayesian penetrence 
-
 ggplot(d3, aes(x = clinvar, y = p_mean_w)) + geom_dotplot(binaxis='y', stackdir='center', dotsize = 0.75) + ylim(0, 1)
 
 # Plot observed penetrence 
-
 ggplot(d3, aes(x = clinvar, y = penetrance_lqt1)) + geom_dotplot(binaxis='y', stackdir='center', dotsize = 0.75) + ylim(0, 1)
 
 ```
 
 
-## Structural Penetrance Data
+# Structural Penetrance Data
+Here we generate a dataframe that is used in our structural analyses. The weights of these per-variant outputs are used to differentially color the protein structure, and highlight regions of high estimated penetrance. These analyses can help provide insight into structural-determinants of penetrance.
 
 ```{r}
 
-# Generate .csv for pymol sessions to model LQT1 penetrance on protein structure as shown in Figure 6
+# Generate .csv for pymol sessions to model LQT1 penetrance on protein structure as shown in Figure 5
 
 rm(d)
-load('lit_plus_cohort_checkpoint_application.RData')
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 structure_penetrance <- d
 structure_penetrance <- structure_penetrance[,c("var", "resnum", "p_mean_w")]
@@ -374,14 +361,16 @@ structure_penetrance <- structure_penetrance[,c("var", "resnum", "p_mean_w")]
 ```
 
 
-## Forest Plots 
+# Forest Plots 
+We generate forest plots for all possible variants in KCNQ1, as well as for a specific example shown in the Figure 2 of the manuscript. These highlight the ability of clinical phenotypes to further refine Bayesian prior estimates, tailoring the point estimate and decreasing its associated uncertainty. 
 
 ```{r Forest Plots, results='hide'}
 
-# Make forest plots for prospective use and for Figure 3 
+# Make forest plots for prospective use and for Figure 2B
+rm(d)
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 library(forestplot)
-
 d<-d[d$total_carriers>0 & d$mut_type!="nonsense",]  
 d<-d[!is.na(d$var),]
 
@@ -403,7 +392,6 @@ forest.data.prior <- data.frame(variant = d$var, mean=mean.prior,
 forest.data.prior$group<-"prior"
 
 ### Break here for Figure specific script! 
-
 
 forest.data<-rbind(forest.data.post, forest.data.prior)
 forest.data<-forest.data[order(forest.data$resnum, forest.data$variant),]

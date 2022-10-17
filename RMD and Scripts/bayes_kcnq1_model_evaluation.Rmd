@@ -45,30 +45,35 @@ library(rootSolve)
 library(pROC)
 library(wCorr)
 library(MALDIquant)
-library(tidyverse)      # data manipulation and visualization
-library(lubridate)      # easily work with dates and times
-library(fpp2)           # working with time series data
-library(zoo)            # working with time series data
+library(tidyverse)      
+library(lubridate)     
+library(fpp2)          
+library(zoo)            
 library(latex2exp)
 library(forestplot)
 library(ggplot2)
 library(caret)
 
-source('func_dist_seq.R')
+#set working directory
+setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
+source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
 
-# Dataset from Bayes Processing 
-load("KCNQ1_prepared_v15.RData") 
+# Dataset from Bayes Processing RMD
+load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/KCNQ1_prepared_data') 
 
 # Include distances between residue centroids from structure of KCNQ1 PDB-ID: 6UZZ
-q1dist <- read.csv(file = "kcnq1_distances.csv", header = FALSE)
+q1dist <- read.csv(file = '~/Desktop/Bayes_Incomplete_Penetrance/Covariates/kcnq1_distances.csv', header = FALSE)
 
 ```
 
 # Introduction
 
-This document describes our Bayesian penetrance estimation protocol for the KCNQ1-LQT1 genotype-phenotype relationship. We integrate variant-specific features to develop a prior probability of LQT1 manifestation. We update this prior using clinical phenotype counts from variant heterozygotes and population controls to yield a posterior. We evaluate our method using Spearman and Pearson correlations, Brier Scores, and 10-fold cross validation. This work builds on previously published work for SCN5A (PMID: 32569262) and KCNH2 (PMID: 34309407). 
+This document describes our Bayesian penetrance estimation protocol for the KCNQ1-LQT1 genotype-phenotype relationship. We build the model based on observed heterozygote phenotypes and variant specific features, including function, structure, and in silico predictions. We evaluate our method using Spearman and Pearson correlations, Brier Scores, and 10-fold cross validation. This work builds on previously published work for SCN5A (PMID: 32569262) and KCNH2 (PMID: 34309407). 
 
 Variant-specific data and clinical data are curated in the Bayes KCNQ1 Data Processing RMD. The current document withholds the LQT1-dist metric for each variant being evaluated. For prospective applications, all LQT1-dist information is incorporated. 
+
+# Model Construction
+Here we construct the model. Additional details are provided in the Supplemental Methods. 
 
 ## Literature and Cohort Combined
 
@@ -87,7 +92,7 @@ d[d$total_carriers < 1,"weight"] <- 0.000
 ```
 
 
-### LQT1 empirical diagnosis probability prior
+## LQT1 empirical diagnosis probability prior
 Use observed LQT1 diagnosis probability to calculate "LQTS probability density" as described in previous publication. Plot diagnosis probability density versus residue
 
 ```{r}
@@ -142,7 +147,7 @@ lines(xrange, (ps$fit-1.96*ps$se.fit)*1, lty=2, lwd=4)
 
 ```
 
-### Calculate LQTS probability densities and annotate function and structural location
+## Calculate LQTS probability densities and annotate function and structural location
 With the updated empirical priors applied to carrier counts, calculate "LQTS probability density" as described in previous publication. !!! NOTE: since these data are truly the "best estimates" we include all variants in the calculation such that unique scores are by residue not by variant.
 
 
@@ -198,7 +203,7 @@ lines(xrange, (ps$fit-1.96*ps$se.fit)*1, lty=2, lwd=4)
 
 ```
 
-# Merge Clinical Dataframe with Covariate Dataframe
+## Merge Clinical Dataframe with Covariate Dataframe
 
 ```{r}
 
@@ -211,7 +216,7 @@ d <- unique(d)
 
 ```
 
-## Calculate EM priors and posteriors for all variants
+## Calculate Bayesian priors and posteriors for all variants
 
 ```{r, echo=T, results='hide'}
 
@@ -317,6 +322,8 @@ save(d,file = "lit_plus_cohort_checkpoint_eval.RData")
 
 ```
 
+# Calculate correlations of covariates with empirical posteriors
+We next evaluate our model using Spearman correlations, Pearson correlations, and Brier scores (see below). 
 
 ## Spearman Lit and Cohort merged 
 
@@ -445,18 +452,14 @@ forestplot(tmp$Feature,tmp$Spearman,tmp$Spearman_low,tmp$Spearman_high)
 ```
 
 
-# 10-fold Crossfold Validation for Spearman, Pearson, and Brier scores 
+# 10-fold Cross Validation for Spearman, Pearson, and Brier scores 
+We perform 10-fold cross validation to assess the optimism of our estimates across the dataset. We do this using 3 different metrics. 
 
 ## Import Data 
 
-```{r cars}
+```{r}
 
-# Works with previous version - optimize on below
-
-
-#load("lit_plus_cohort_checkpoint_prospective_v2.RData") 
-
-# overlap of variants - remove non-unqiues
+# overlap of variants - remove non-uniques
 
 d <- distinct(d, var, .keep_all = TRUE)
 d <- d[d$total_carriers >0 , ]
@@ -466,7 +469,7 @@ d <- d[d$total_carriers >0 , ]
 d$ID <- seq.int(nrow(d))
 d <- d[sample(nrow(d)),]
 
-# Set prior and posterior to 0 when using saved or loaded data
+# set prior and posterior to 0 when using saved or loaded data
 
 d$prior_mean_w <- NULL
 d$p_mean_w <- NULL
@@ -484,7 +487,7 @@ options(warn = -1)
 ```
 
 
-## Functions for cross fold 
+## Functions for 10-fold CV
 
 ```{r}
 
@@ -507,6 +510,7 @@ solab <- function(mean, variance){
   return(c(alpha,beta))
 }
 
+# calculate Brier score
 brier_calc <- function(covariate, outcome, count){
   score <- sum((covariate - outcome)^2)/count
   print(score)
@@ -600,7 +604,7 @@ full2 <- full[full$weight == 0, ]
 
 spearman_cor[j] <- weightedCorr(full2$lqt1_penetranceBayesian,full2$prior_mean_w,method='spearman',weights= (1-1/(0.01+full2$total_carriers)))
 
-print(full)
+print(spearman_cor)
 
 }
 
@@ -683,7 +687,7 @@ full2 <- full[full$weight == 0, ]
 
 pearson_cor[j] <- weightedCorr(full2$lqt1_penetranceBayesian,full2$prior_mean_w,method='pearson',weights= (1-1/(0.01+full2$total_carriers)))
 
-print(full)
+print(pearson_cor)
 
 }
 
@@ -768,7 +772,7 @@ full2 <- full[full$weight == 0, ]
 
 brier_scores[j] <- brier_calc(full2$lqt1_penetranceBayesian, full2$prior_mean_w, length(full2$lqt1_penetranceBayesian))
   
-print(full)
+print(brier_scores)
 
 }
 
@@ -778,7 +782,7 @@ print(full)
 
 ```{r}
 
-# Data for Table 1 
+# Data for Supplemental Table 2
 
 rm(d)
 load('lit_plus_cohort_checkpoint_eval.RData')
@@ -818,8 +822,10 @@ brier_calc(d_pph2_prob$lqt1_penetranceBayesian, d_pph2_prob$pph2_prob, length(d_
 
 ```
 
-## Bootstrap and get the coverage rate 
+# Coverage Plots
+In addition to an estimate of penetrance, we also provide an uncertainty of that estimate. For example, 7 of 10 affected heterozygotes has the same point estimate as 700/1000 affected heterozygotes, but there is much less uncertainty in the latter. We therefore calibrate this uncertainty in terms of number of affected heterozygotes in our estimate, using th strategy outlined below. 
 
+## Bootstrap and get the coverage rate 
 (1) Use the observed diagnosis probability from as the TRUE diagnosis probability, generate n binomial observations
 
 (2) Use the final EM algorithm posterior as the prior for Beta-Binomial, incorporate data from step (1), generate the posterior distribution, and get 95% credible interval.
@@ -864,12 +870,10 @@ BootsCoverage <- function(var,n=100,N=1000,true){
 ``` 
 
 ## Plot coverage
-### Observed diagnosis probability as the "true" diagnosis probability
-
-The coverage plot where observed diagnosis probability is the "true" diagnosis probability and one hundred new observations are added is shown below. 
+Observed diagnosis probability as the "true" diagnosis probability. The coverage plot where observed diagnosis probability is the "true" diagnosis probability and one hundred new observations are added is shown below. 
 
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r}
 
 # Data for Supplementary Figure 2 
 

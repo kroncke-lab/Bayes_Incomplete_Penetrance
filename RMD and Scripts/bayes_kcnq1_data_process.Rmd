@@ -61,7 +61,7 @@ library(ggplot2)
 # Introduction
 This document describes an estimate of LQT1 penetrance from *KCNQ1* missense variants. We incorporate structure, function, and *in silico* predictive models to inform Bayesian penetrance priors. We use this data as input to develop a model of KCNQ1 variant penetrance, and to then investigate patterns of penetrance among four genetic arrhythmias. 
 
-## Data Preparation
+# Data Preparation
 Heterozygote data were curated from the literature, retrieved from population databases, or supplied by clinical collaborators.
 Data are read in, cleaned, and predictive features are prepared for analysis.
 Data are then saved to the `RData` format for use in the Evaluation and Application files.  
@@ -92,7 +92,8 @@ lit.nonoverlap.data[as.character(lit.nonoverlap.data$mutAA) == as.character(lit.
 
 ```
 
-## Read in Cohort Data
+# Read in Cohort Data
+We process the data supplied by tertiary care centers and combine them into a single dataframe. 
 
 ```{r Cohort Data, echo = T, results = 'hide'}
 
@@ -166,7 +167,8 @@ for (variant in cohort.data$var){
 
 ```
 
-## Combine individuals from cohort and the literature
+# Combine individuals from cohort and the literature
+We next combine clinical cohort observations with those from the literature curation. Potential overlap heterozygotes between the tertiary care centers and publications were removed during the curation to avoid double counting. 
 
 ```{r Combine Data, echo = T, results = 'hide'}
 
@@ -207,7 +209,8 @@ lit.cohort.data <- lit.cohort.data[lit.cohort.data$total_carriers>0 & !is.na(lit
 ```
 
 
-## Assembly of in silico covariates and functional data
+# Assembly of in silico covariates and functional data
+Here we merge in silico and functional data with clinical observations for each variant. We will combine these data using an expectation-maximization framework in the subsequent scripts. 
 
 ```{r in silico and functional}
 
@@ -216,7 +219,7 @@ lit.cohort.data <- lit.cohort.data[lit.cohort.data$total_carriers>0 & !is.na(lit
 AAs<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","D","E","X")
 AA2<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","D","E")
 
-#Cardiac boost data
+#Cardiacboost data
 
 cb<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
 cb<-cb[cb$gene=="KCNQ1",]
@@ -274,14 +277,9 @@ in.silico <- in.silico[,c("var", "resnum", "pph2_prob","blast_pssm", "provean_sc
 in.silico <- distinct(in.silico, var, .keep_all = TRUE)
 
 
-
 # Curated Functional Data from Syncropatch and Manual Patchclamp data 
 
-q1.function <- read.csv("data/Covariates/KCNQ1_functional_data_trimmed_v2.csv", header=TRUE, stringsAsFactors=FALSE)
-
-# make numeric here
-
-#q1.function <- lapply(q1.function[,2:9], as.numeric)
+q1.function <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/KCNQ1_functional_data_trimmed_v2.csv', header=TRUE, stringsAsFactors=FALSE)
 
 # merge with in silico list
 
@@ -289,9 +287,7 @@ q1.covariates <- merge(in.silico, q1.function, all=TRUE)
 
 # May optionally take only SNV data using REVEL subset - here we keep all 
 
-#q1.covariates <- q1.covariates[!is.na(q1.covariates$revel_score), ]
-
-save(cohort.data, q1.covariates, lit.cohort.data, lit.nonoverlap.data, mut_type, file="KCNQ1_prepared_v16.RData")
+save(cohort.data, q1.covariates, lit.cohort.data, lit.nonoverlap.data, mut_type, file="KCNQ1_prepared_data")
 
 ```
 
