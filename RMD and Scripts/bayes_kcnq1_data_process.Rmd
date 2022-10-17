@@ -21,18 +21,16 @@ editor_options:
 ```{r preamble, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-setwd("/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/")
-source('func_dist_seq.R')
+#set working directory
+setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
+source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
 
-
-source('../RMD and Scripts/func_dist_seq.R')
 
 library("nnet")
 library("DBI")
 library("RSQLite")
 library(dplyr)
 library(ggplot2)
-#library(ggpubr)
 library(caret)
 library(plotrix)
 library(glmnet)
@@ -50,14 +48,13 @@ library(reticulate)
 library(rootSolve)
 library(pROC)
 library(MALDIquant)
-library(tidyverse)      # data manipulation and visualization
-library(lubridate)      # easily work with dates and times
-library(fpp2)           # working with time series data
-library(zoo)            # working with time series data
+library(tidyverse)      
+library(lubridate)      
+library(fpp2)         
+library(zoo)
 library(latex2exp)
 library(forestplot)
 library(ggplot2)
-
 
 ```
 
@@ -65,20 +62,17 @@ library(ggplot2)
 This document describes an estimate of LQT1 penetrance from *KCNQ1* missense variants. We incorporate structure, function, and *in silico* predictive models to inform Bayesian penetrance priors. We use this data as input to develop a model of KCNQ1 variant penetrance, and to then investigate patterns of penetrance among four genetic arrhythmias. 
 
 ## Data Preparation
+Heterozygote data were curated from the literature, retrieved from population databases, or supplied by clinical collaborators.
 Data are read in, cleaned, and predictive features are prepared for analysis.
 Data are then saved to the `RData` format for use in the Evaluation and Application files.  
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ```{r data prep, eval = TRUE}
 
 # Load curated literature data as described in the methods 
 
-load("/Users//mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/LitFinal_v7.RData")
+load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/LitFinal_v7.RData')
 
-load("../Heterozygote Data/LitFinal_v7.RData")
 d <- lit_final
 
 missense <- c("S", "T", "V", "D", "P", "E", "G",  "Y", "R", "W", 
@@ -105,12 +99,12 @@ lit.nonoverlap.data[as.character(lit.nonoverlap.data$mutAA) == as.character(lit.
 
 # Read in data from each site - manual review removes potential overlap from previously published probands
 
-japan.data <- read.csv("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/Japan_cohort-v1.csv")
+japan.data <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/Japan_cohort-v1.csv')
 
-load("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/KCNQ1_Italy_v3.RData")
+load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Italy_v3.RData')
 italy.data <- italy_final
 
-load("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/KCNQ1_Paris_v2.RData")
+load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Paris_v2.RData')
 paris.data <- paris_final
 
 # Combine all individuals from cohort by missense variants
@@ -224,7 +218,7 @@ AA2<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","
 
 #Cardiac boost data
 
-cb<-read.table("Covariates/cardiacboost_arm_all_possible_mutations-adj.csv", sep = "\t", header = TRUE)
+cb<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
 cb<-cb[cb$gene=="KCNQ1",]
 cb$var<-as.character(paste(cb$var))
 cb$mut_type<-"missense"
@@ -233,13 +227,13 @@ names(cb)[1]<-"cardiacboost"
 
 # PSSM data 
 
-pssm<-read.table("covariates/EMBL_EBI_KCNQ1_PSSM.txt", sep = "", header = TRUE)
+pssm<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/EMBL_EBI_KCNQ1_PSSM.txt', sep = "", header = TRUE)
 pssm_clean <- pssm[,c(1:22)]
 pssm_melt<-melt(data = pssm_clean, id.vars = c("resnum", "wtAA"), measure.vars = AA2, variable.name = "mutAA", value.name = "blast_pssm")
 
 # PolyPhen2 Data
 
-pph2<-read.csv("/Users/mattoneill/Desktop/Bayes_KCNQ1_LQT1_Penetrance/kcnq1_R_project/data/Covariates/pph2-full_kcnq1.txt", sep = '\t', strip.white = TRUE)
+pph2<-read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/pph2-full_kcnq1.txt', sep = '\t', strip.white = TRUE)
 pph2_kcnq1_adj <- pph2[,c("pos", "aa1", "aa2", "pph2_class", "pph2_prob", "pph2_FPR", "pph2_TPR", "pph2_FDR")]
 names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "pos"] <- "resnum"
 names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa1"] <- "natAA"
@@ -247,7 +241,7 @@ names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa2"] <- "mutAA"
 
 # Provean
 
-prov_kcnq1 <- read.table("Covariates/Provean_and_SIFT_KCNQ1.tsv", sep = '\t', header = FALSE)
+prov_kcnq1 <- read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/Provean_and_SIFT_KCNQ1.tsv', sep = '\t', header = FALSE)
 prov_kcnq1$var <- paste(prov_kcnq1$V5, prov_kcnq1$V4, prov_kcnq1$V6, sep = '')
 names(prov_kcnq1) <- c("number", "ENSP1", "ENSP2", "Residue", "native", "mutant", "score", "class", "random", "random1", "random2", "consequence", "score1", "score2", "var")
 prov_kcnq1_format <- prov_kcnq1[,c("var", "score")]
@@ -255,7 +249,7 @@ names(prov_kcnq1_format)[names(prov_kcnq1_format) == "score"] <- "provean_score"
 
 # Revel
 
-load("revel.RData")
+load('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/revel.RData')
 revel <- revel_kcnq1
 names(revel) <- c("var","revel_score")
 
@@ -273,10 +267,9 @@ in.silico <- merge(in.silico, prov_kcnq1_format, all = TRUE)
 in.silico <- unique(in.silico)
 in.silico <- merge(in.silico, revel, all = TRUE)
 in.silico <- unique(in.silico)
-in.silico <- in.silico[,c("var", "resnum", "pph2_prob", 
-"blast_pssm", "provean_score", "revel_score", "cardiacboost", "mut_type")]
+in.silico <- in.silico[,c("var", "resnum", "pph2_prob","blast_pssm", "provean_score", "revel_score", "cardiacboost", "mut_type")]
 
-# Only take one entry per variant! 
+# Only take one entry per variant
 
 in.silico <- distinct(in.silico, var, .keep_all = TRUE)
 
