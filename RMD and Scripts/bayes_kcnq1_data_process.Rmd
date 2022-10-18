@@ -21,10 +21,9 @@ editor_options:
 ```{r preamble, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-#set working directory
-setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
-source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
+# When working in the Bayes R Project, adjust knitting setting from Document -> Project directory to knit without specificying absolute file paths 
 
+source('RMD and Scripts/func_dist_seq.R')
 
 library("nnet")
 library("DBI")
@@ -71,7 +70,7 @@ Data are then saved to the `RData` format for use in the Evaluation and Applicat
 
 # Load curated literature data as described in the methods 
 
-load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/LitFinal_v7.RData')
+load('Heterozygote Data/LitFinal_v7.RData')
 
 d <- lit_final
 
@@ -100,12 +99,12 @@ We process the data supplied by tertiary care centers and combine them into a si
 
 # Read in data from each site - manual review removes potential overlap from previously published probands
 
-japan.data <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/Japan_cohort-v1.csv')
+japan.data <- read.csv('Heterozygote Data/Japan_cohort-v1.csv')
 
-load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Italy_v3.RData')
+load('Heterozygote Data/KCNQ1_Italy_v3.RData')
 italy.data <- italy_final
 
-load('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Paris_v2.RData')
+load('Heterozygote Data/KCNQ1_Paris_v2.RData')
 paris.data <- paris_final
 
 # Combine all individuals from cohort by missense variants
@@ -221,7 +220,7 @@ AA2<-c("A","G","I","L","V","M","F","W","P","C","S","T","Y","N","Q","H","K","R","
 
 #Cardiacboost data
 
-cb<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
+cb<-read.table('Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
 cb<-cb[cb$gene=="KCNQ1",]
 cb$var<-as.character(paste(cb$var))
 cb$mut_type<-"missense"
@@ -230,13 +229,13 @@ names(cb)[1]<-"cardiacboost"
 
 # PSSM data 
 
-pssm<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/EMBL_EBI_KCNQ1_PSSM.txt', sep = "", header = TRUE)
+pssm<-read.table('Covariates/EMBL_EBI_KCNQ1_PSSM.txt', sep = "", header = TRUE)
 pssm_clean <- pssm[,c(1:22)]
 pssm_melt<-melt(data = pssm_clean, id.vars = c("resnum", "wtAA"), measure.vars = AA2, variable.name = "mutAA", value.name = "blast_pssm")
 
 # PolyPhen2 Data
 
-pph2<-read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/pph2-full_kcnq1.txt', sep = '\t', strip.white = TRUE)
+pph2<-read.csv('Covariates/pph2-full_kcnq1.txt', sep = '\t', strip.white = TRUE)
 pph2_kcnq1_adj <- pph2[,c("pos", "aa1", "aa2", "pph2_class", "pph2_prob", "pph2_FPR", "pph2_TPR", "pph2_FDR")]
 names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "pos"] <- "resnum"
 names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa1"] <- "natAA"
@@ -244,7 +243,7 @@ names(pph2_kcnq1_adj)[names(pph2_kcnq1_adj) == "aa2"] <- "mutAA"
 
 # Provean
 
-prov_kcnq1 <- read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/Provean_and_SIFT_KCNQ1.tsv', sep = '\t', header = FALSE)
+prov_kcnq1 <- read.table('Covariates/Provean_and_SIFT_KCNQ1.tsv', sep = '\t', header = FALSE)
 prov_kcnq1$var <- paste(prov_kcnq1$V5, prov_kcnq1$V4, prov_kcnq1$V6, sep = '')
 names(prov_kcnq1) <- c("number", "ENSP1", "ENSP2", "Residue", "native", "mutant", "score", "class", "random", "random1", "random2", "consequence", "score1", "score2", "var")
 prov_kcnq1_format <- prov_kcnq1[,c("var", "score")]
@@ -252,7 +251,7 @@ names(prov_kcnq1_format)[names(prov_kcnq1_format) == "score"] <- "provean_score"
 
 # Revel
 
-load('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/revel.RData')
+load('Covariates/revel.RData')
 revel <- revel_kcnq1
 names(revel) <- c("var","revel_score")
 
@@ -279,7 +278,7 @@ in.silico <- distinct(in.silico, var, .keep_all = TRUE)
 
 # Curated Functional Data from Syncropatch and Manual Patchclamp data 
 
-q1.function <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/KCNQ1_functional_data_trimmed_v2.csv', header=TRUE, stringsAsFactors=FALSE)
+q1.function <- read.csv('Covariates/KCNQ1_functional_data_trimmed_v2.csv', header=TRUE, stringsAsFactors=FALSE)
 
 # merge with in silico list
 

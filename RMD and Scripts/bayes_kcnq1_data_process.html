@@ -296,7 +296,7 @@ pre code {
 <p>Heterozygote data were curated from the literature, retrieved from population databases, or supplied by clinical collaborators. Data are read in, cleaned, and predictive features are prepared for analysis. Data are then saved to the <code>RData</code> format for use in the Evaluation and Application files.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load curated literature data as described in the methods </span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/LitFinal_v7.RData&#39;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;Heterozygote Data/LitFinal_v7.RData&#39;</span>)</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> lit_final</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
@@ -319,12 +319,12 @@ pre code {
 <p>We process the data supplied by tertiary care centers and combine them into a single dataframe.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Read in data from each site - manual review removes potential overlap from previously published probands</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>japan.data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/Japan_cohort-v1.csv&#39;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>japan.data <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&#39;Heterozygote Data/Japan_cohort-v1.csv&#39;</span>)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Italy_v3.RData&#39;</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;Heterozygote Data/KCNQ1_Italy_v3.RData&#39;</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>italy.data <span class="ot">&lt;-</span> italy_final</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_Paris_v2.RData&#39;</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;Heterozygote Data/KCNQ1_Paris_v2.RData&#39;</span>)</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>paris.data <span class="ot">&lt;-</span> paris_final</span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine all individuals from cohort by missense variants</span></span>
@@ -430,7 +430,7 @@ pre code {
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">#Cardiacboost data</span></span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>cb<span class="ot">&lt;-</span><span class="fu">read.table</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv&#39;</span>, <span class="at">sep =</span> <span class="st">&quot;</span><span class="sc">\t</span><span class="st">&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>cb<span class="ot">&lt;-</span><span class="fu">read.table</span>(<span class="st">&#39;Covariates/cardiacboost_arm_all_possible_mutations-adj.csv&#39;</span>, <span class="at">sep =</span> <span class="st">&quot;</span><span class="sc">\t</span><span class="st">&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>cb<span class="ot">&lt;-</span>cb[cb<span class="sc">$</span>gene<span class="sc">==</span><span class="st">&quot;KCNQ1&quot;</span>,]</span>
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>cb<span class="sc">$</span>var<span class="ot">&lt;-</span><span class="fu">as.character</span>(<span class="fu">paste</span>(cb<span class="sc">$</span>var))</span>
 <span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>cb<span class="sc">$</span>mut_type<span class="ot">&lt;-</span><span class="st">&quot;missense&quot;</span></span>
@@ -439,13 +439,13 @@ pre code {
 <span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co"># PSSM data </span></span>
 <span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>pssm<span class="ot">&lt;-</span><span class="fu">read.table</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/EMBL_EBI_KCNQ1_PSSM.txt&#39;</span>, <span class="at">sep =</span> <span class="st">&quot;&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>pssm<span class="ot">&lt;-</span><span class="fu">read.table</span>(<span class="st">&#39;Covariates/EMBL_EBI_KCNQ1_PSSM.txt&#39;</span>, <span class="at">sep =</span> <span class="st">&quot;&quot;</span>, <span class="at">header =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>pssm_clean <span class="ot">&lt;-</span> pssm[,<span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">22</span>)]</span>
 <span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>pssm_melt<span class="ot">&lt;-</span><span class="fu">melt</span>(<span class="at">data =</span> pssm_clean, <span class="at">id.vars =</span> <span class="fu">c</span>(<span class="st">&quot;resnum&quot;</span>, <span class="st">&quot;wtAA&quot;</span>), <span class="at">measure.vars =</span> AA2, <span class="at">variable.name =</span> <span class="st">&quot;mutAA&quot;</span>, <span class="at">value.name =</span> <span class="st">&quot;blast_pssm&quot;</span>)</span>
 <span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co"># PolyPhen2 Data</span></span>
 <span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>pph2<span class="ot">&lt;-</span><span class="fu">read.csv</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/pph2-full_kcnq1.txt&#39;</span>, <span class="at">sep =</span> <span class="st">&#39;</span><span class="sc">\t</span><span class="st">&#39;</span>, <span class="at">strip.white =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>pph2<span class="ot">&lt;-</span><span class="fu">read.csv</span>(<span class="st">&#39;Covariates/pph2-full_kcnq1.txt&#39;</span>, <span class="at">sep =</span> <span class="st">&#39;</span><span class="sc">\t</span><span class="st">&#39;</span>, <span class="at">strip.white =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>pph2_kcnq1_adj <span class="ot">&lt;-</span> pph2[,<span class="fu">c</span>(<span class="st">&quot;pos&quot;</span>, <span class="st">&quot;aa1&quot;</span>, <span class="st">&quot;aa2&quot;</span>, <span class="st">&quot;pph2_class&quot;</span>, <span class="st">&quot;pph2_prob&quot;</span>, <span class="st">&quot;pph2_FPR&quot;</span>, <span class="st">&quot;pph2_TPR&quot;</span>, <span class="st">&quot;pph2_FDR&quot;</span>)]</span>
 <span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(pph2_kcnq1_adj)[<span class="fu">names</span>(pph2_kcnq1_adj) <span class="sc">==</span> <span class="st">&quot;pos&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;resnum&quot;</span></span>
 <span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(pph2_kcnq1_adj)[<span class="fu">names</span>(pph2_kcnq1_adj) <span class="sc">==</span> <span class="st">&quot;aa1&quot;</span>] <span class="ot">&lt;-</span> <span class="st">&quot;natAA&quot;</span></span>
@@ -453,7 +453,7 @@ pre code {
 <span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Provean</span></span>
 <span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>prov_kcnq1 <span class="ot">&lt;-</span> <span class="fu">read.table</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/Provean_and_SIFT_KCNQ1.tsv&#39;</span>, <span class="at">sep =</span> <span class="st">&#39;</span><span class="sc">\t</span><span class="st">&#39;</span>, <span class="at">header =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>prov_kcnq1 <span class="ot">&lt;-</span> <span class="fu">read.table</span>(<span class="st">&#39;Covariates/Provean_and_SIFT_KCNQ1.tsv&#39;</span>, <span class="at">sep =</span> <span class="st">&#39;</span><span class="sc">\t</span><span class="st">&#39;</span>, <span class="at">header =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>prov_kcnq1<span class="sc">$</span>var <span class="ot">&lt;-</span> <span class="fu">paste</span>(prov_kcnq1<span class="sc">$</span>V5, prov_kcnq1<span class="sc">$</span>V4, prov_kcnq1<span class="sc">$</span>V6, <span class="at">sep =</span> <span class="st">&#39;&#39;</span>)</span>
 <span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(prov_kcnq1) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;number&quot;</span>, <span class="st">&quot;ENSP1&quot;</span>, <span class="st">&quot;ENSP2&quot;</span>, <span class="st">&quot;Residue&quot;</span>, <span class="st">&quot;native&quot;</span>, <span class="st">&quot;mutant&quot;</span>, <span class="st">&quot;score&quot;</span>, <span class="st">&quot;class&quot;</span>, <span class="st">&quot;random&quot;</span>, <span class="st">&quot;random1&quot;</span>, <span class="st">&quot;random2&quot;</span>, <span class="st">&quot;consequence&quot;</span>, <span class="st">&quot;score1&quot;</span>, <span class="st">&quot;score2&quot;</span>, <span class="st">&quot;var&quot;</span>)</span>
 <span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>prov_kcnq1_format <span class="ot">&lt;-</span> prov_kcnq1[,<span class="fu">c</span>(<span class="st">&quot;var&quot;</span>, <span class="st">&quot;score&quot;</span>)]</span>
@@ -461,7 +461,7 @@ pre code {
 <span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Revel</span></span>
 <span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/revel.RData&#39;</span>)</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="st">&#39;Covariates/revel.RData&#39;</span>)</span>
 <span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>revel <span class="ot">&lt;-</span> revel_kcnq1</span>
 <span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(revel) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;var&quot;</span>,<span class="st">&quot;revel_score&quot;</span>)</span>
 <span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a></span>
@@ -488,7 +488,7 @@ pre code {
 <span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Curated Functional Data from Syncropatch and Manual Patchclamp data </span></span>
 <span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>q1.function <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&#39;~/Desktop/Bayes_Incomplete_Penetrance/Covariates/KCNQ1_functional_data_trimmed_v2.csv&#39;</span>, <span class="at">header=</span><span class="cn">TRUE</span>, <span class="at">stringsAsFactors=</span><span class="cn">FALSE</span>)</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>q1.function <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&#39;Covariates/KCNQ1_functional_data_trimmed_v2.csv&#39;</span>, <span class="at">header=</span><span class="cn">TRUE</span>, <span class="at">stringsAsFactors=</span><span class="cn">FALSE</span>)</span>
 <span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a><span class="co"># merge with in silico list</span></span>
 <span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a></span>

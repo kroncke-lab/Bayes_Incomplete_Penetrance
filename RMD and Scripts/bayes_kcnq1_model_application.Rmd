@@ -21,6 +21,8 @@ editor_options:
 ```{r preamble,include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
+# When working in the Bayes R Project, adjust knitting setting from Document -> Project directory to knit without specificying absolute file paths 
+
 library("nnet")
 library("DBI")
 library("RSQLite")
@@ -54,15 +56,14 @@ library(forestplot)
 library(ggplot2)
 library(caret)
 
-#set working directory
-setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
-source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
+# Source files
+source('RMD and Scripts/func_dist_seq.R')
 
 # Dataset from Bayes Processing RMD
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/KCNQ1_prepared_data') 
+load('RMD and Scripts/KCNQ1_prepared_data') 
 
 # Include distances between residue centroids from structure of KCNQ1 PDB-ID: 6UZZ
-q1dist <- read.csv(file = '~/Desktop/Bayes_Incomplete_Penetrance/Covariates/kcnq1_distances.csv', header = FALSE)
+q1dist <- read.csv(file = 'Covariates/kcnq1_distances.csv', header = FALSE)
 
 ```
 
@@ -269,9 +270,9 @@ Here we construct the penetrance histograms that are shown in Figure 3 of the ma
 # Produce histograms for Figure 3 - take only variants with observed heterozygotes
 
 d <- d[d$total_carriers >0, ]
-hist(d$penetrance_lqt1) # Figure 4A
-hist(d$p_mean_w, breaks = 20) # Figure 4B
-quantile(d$p_mean_w) # Figure 4F
+hist(d$penetrance_lqt1) 
+hist(d$p_mean_w, breaks = 20) 
+quantile(d$p_mean_w)
 
 ```
 
@@ -284,7 +285,7 @@ Here we generate the data that are used in our online variantbrowser.org - this 
 # Reload data after last analysis 
 
 rm(d)
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
+load('RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 # annotate structural location (hotspot)
 
@@ -306,7 +307,7 @@ data <- d
 
 # Use CardiacBoost dataframe for merging genomic coordinates with each variant 
 
-cb<-read.table('~/Desktop/Bayes_Incomplete_Penetrance/Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
+cb<-read.table('Covariates/cardiacboost_arm_all_possible_mutations-adj.csv', sep = "\t", header = TRUE)
 cb<-cb[cb$gene=="KCNQ1",]
 cb$var<-as.character(paste(cb$var))
 cb_cDNA <- cb[,c("var", "HGVSc", "pos")]
@@ -327,11 +328,11 @@ We comparte categorical penetrance of variants among ClinVar categories with the
 
 # Reload data after last analysis 
 rm(d)
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
+load('RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 # Here we compare the observed and Bayesian penetrance against ClinVar annotations as presented in Figure 4
 
-annotation <- read.csv('~/Desktop/Bayes_Incomplete_Penetrance/Heterozygote Data/KCNQ1_clinvar.csv', header = TRUE)
+annotation <- read.csv('Heterozygote Data/KCNQ1_clinvar.csv', header = TRUE)
 d2 <- data.frame(annotation)
 d3 <- merge(d, d2, by = "var")
 d3 <- d3[, c("clinvar", "p_mean_w", "penetrance_lqt1")]
@@ -353,7 +354,7 @@ Here we generate a dataframe that is used in our structural analyses. The weight
 # Generate .csv for pymol sessions to model LQT1 penetrance on protein structure as shown in Figure 5
 
 rm(d)
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
+load('RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 structure_penetrance <- d
 structure_penetrance <- structure_penetrance[,c("var", "resnum", "p_mean_w")]
@@ -364,11 +365,11 @@ structure_penetrance <- structure_penetrance[,c("var", "resnum", "p_mean_w")]
 # Forest Plots 
 We generate forest plots for all possible variants in KCNQ1, as well as for a specific example shown in the Figure 2 of the manuscript. These highlight the ability of clinical phenotypes to further refine Bayesian prior estimates, tailoring the point estimate and decreasing its associated uncertainty. 
 
-```{r Forest Plots, results='hide'}
+```{r Forest Plots, echo = TRUE, warning = FALSE}
 
 # Make forest plots for prospective use and for Figure 2B
 rm(d)
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
+load('RMD and Scripts/lit_plus_cohort_checkpoint_application.RData')
 
 library(forestplot)
 d<-d[d$total_carriers>0 & d$mut_type!="nonsense",]  
@@ -404,7 +405,7 @@ barCOLS = c("#FFFFFF","#FFFFFF")
 
 plotg <- function(a,b){
   fd<-forest.data[a:b,]
-  png( paste("images/ForestPlots", a, "-",b,"pics.png",sep=""),res=300,height=10,width=10,units="in")
+  png( paste('RMD and Scripts/images/Forest plot', a, "-",b,"pics.png",sep=""),res=300,height=10,width=10,units="in")
   p<-ggplot(fd, aes(x=reorder(variant,-resnum), y=mean, ymin=lower, ymax=higher, col=group, fill=group)) + 
   geom_text(data=fd, aes(x=reorder(variant,-resnum), label=label)) +
 #specify position here
@@ -422,7 +423,9 @@ plotg <- function(a,b){
   dev.off() 
 }
 
-sapply(0:30*50+1,function(x) plotg(x,x+49) )
+sapply(0:30*50+1,function(x) plotg(x,x+49))
 
 ```
+
+
 

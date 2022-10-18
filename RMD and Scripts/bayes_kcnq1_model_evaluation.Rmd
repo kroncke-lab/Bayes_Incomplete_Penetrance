@@ -54,15 +54,14 @@ library(forestplot)
 library(ggplot2)
 library(caret)
 
-#set working directory
-setwd('/Users/mattoneill/Desktop/Bayes_Incomplete_Penetrance/')
-source('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/func_dist_seq.R')
+
+source('RMD and Scripts/func_dist_seq.R')
 
 # Dataset from Bayes Processing RMD
-load('~/Desktop/Bayes_Incomplete_Penetrance/RMD and Scripts/KCNQ1_prepared_data') 
+load('RMD and Scripts/KCNQ1_prepared_data') 
 
 # Include distances between residue centroids from structure of KCNQ1 PDB-ID: 6UZZ
-q1dist <- read.csv(file = '~/Desktop/Bayes_Incomplete_Penetrance/Covariates/kcnq1_distances.csv', header = FALSE)
+q1dist <- read.csv(file = 'Covariates/kcnq1_distances.csv', header = FALSE)
 
 ```
 
@@ -135,7 +134,7 @@ m<- d %>%
   select(resnum, pmean = penetrance_lqt1) %>% 
   mutate(p_mean_smooth = rollmean(pmean, k=20, fill = NA))
 
-# Penetrance estimate by Residue - Supplemental Figure 1 
+# Penetrance estimate by Residue - Supplemental Figure 2 
 
 fit <- loess(d[,"penetrance_lqt1"]~as.numeric(d[,"resnum"]), span = 0.15)
 plot(d$resnum, d$penetrance_lqt1, xlab ="Residue", ylab = "LQT1 Penetrance Estimate")
@@ -148,11 +147,9 @@ lines(xrange, (ps$fit-1.96*ps$se.fit)*1, lty=2, lwd=4)
 ```
 
 ## Calculate LQTS probability densities and annotate function and structural location
-With the updated empirical priors applied to carrier counts, calculate "LQTS probability density" as described in previous publication. !!! NOTE: since these data are truly the "best estimates" we include all variants in the calculation such that unique scores are by residue not by variant.
-
+With the updated empirical priors applied to carrier counts, calculate "LQTS probability density" as described in previous publication.
 
 ```{r, echo=T, results='hide'}
-# Use this model to evaluate
 
 # MODEL 1 - this method for model evaluations - Spearman, 10-fold, and Briers 
 
@@ -164,18 +161,6 @@ for(rec in 1:nrow(q1.covariates)){
 print(rec)
 q1.covariates[rec,c("lqt1_dist", "lqt1_dist_weight")] <- funcdist(q1.covariates[rec, "resnum"], q1.covariates[rec, "var"], d[!is.na(d$total_carriers) & d$total_carriers>0 & d$mut_type != "nonsense",], q1dist, "penetrance_lqt1", "sigmoid", 7)
 }
-
-# MODEL 2 - this method for future predictions! 
-
-#tmp<-data.frame(resnum=NA, lqt1_dist=NA)
-#q1.covariates$lqt1_dist<-NA
-#q1.covariates$lqt1_dist_weight<-NA
-#for(rec in seq(2,676,1)){
-#  ld <- funcdist(rec, "var", d, q1dist, "penetrance_lqt1", "sigmoid", 7)
-#      q1.covariates[!is.na(q1.covariates$resnum) & q1.covariates$resnum == rec, "lqt1_dist"] <- ld[1]
-#      q1.covariates[!is.na(q1.covariates$resnum) & q1.covariates$resnum == rec, "lqt1_dist_weight"] <- ld[2]     
-#      tmp[rec,c("lqt1_dist", "resnum")]<-c(ld[1], rec)
-#}
 
 ```
 
@@ -191,7 +176,7 @@ m<- q1.covariates %>%
   mutate(p_mean_smooth = rollmean(pmean, k=20, fill = NA))
 
 
-# Plot penetrance density by residue - Supplemental Figure 1 
+# Plot penetrance density by residue - Supplemental Figure 2
 
 fit <- loess(q1.covariates[,"lqt1_dist"]~as.numeric(q1.covariates[,"resnum"]), span = 0.15)
 plot(q1.covariates$resnum, q1.covariates$lqt1_dist, xlab ="Residue", ylab = "LQT1 Penetrance Density", xlim=c(0,680))
@@ -282,9 +267,7 @@ while(delta > 1 & count < 25){ # 5 is roughly a change of 0.5%
   }
   }
   new_mean <- (alpha_f + tmp$lqt1)/(alpha_f + beta_f + tmp$total_carriers)
-  
   delta <- sum(abs(new_mean-tmp$p_mean_w))
-  
   tmp$p_mean_w <- new_mean
   print(delta)
 }
@@ -298,7 +281,6 @@ for (variant in mut_type$var){print(variant);
 }
 
 # when tuning parameter is 11, predictions are equivalent to 10 variant heterozygote phenotypes 
-
 prior_mean <- d$p_mean_w
 variance <- prior_mean*(1-prior_mean)
 variance <- variance / 11
@@ -330,10 +312,8 @@ We next evaluate our model using Spearman correlations, Pearson correlations, an
 ```{r}
 
 # Data for text and Supplemental Table 1 
-
 calcPval=function(xName,yName,weightName,nPerms,new.mat2){
   # Pulls out variables
-
   x=new.mat2[,xName] 
   y=new.mat2[,yName] 
   w=new.mat2[,weightName]
@@ -415,7 +395,6 @@ resultTable<-calcAllPvals(yList, xList, 1000, 'weight', tmp)
 ```{r}
 
 d2 <- d[!is.na(d$total_carriers) & d$mut_type == "missense",]
-
 tmp<-d2[!is.na(d2$provean_score) & !is.na(d2$revel_score),] 
 yList=c('lqt1_penetranceBayesian')
 xList=c( 
@@ -445,7 +424,6 @@ for (x in xList){
 }
 
 # Data for Figure 2 
-
 forestplot(tmp$Feature,tmp$Spearman,tmp$Spearman_low,tmp$Spearman_high)
 
 
@@ -460,28 +438,23 @@ We perform 10-fold cross validation to assess the optimism of our estimates acro
 ```{r}
 
 # overlap of variants - remove non-uniques
-
 d <- distinct(d, var, .keep_all = TRUE)
 d <- d[d$total_carriers >0 , ]
 
 # index rows randomly - need to randomize rows first in the final 
-
 d$ID <- seq.int(nrow(d))
 d <- d[sample(nrow(d)),]
 
 # set prior and posterior to 0 when using saved or loaded data
-
 d$prior_mean_w <- NULL
 d$p_mean_w <- NULL
 d$alpha <- NULL
 d$beta <- NULL
 
 # Only test on data for which we have carriers
-
 d <- d[d$total_carriers > 0, ]
 
 # Turn off warnings to speed computation
-
 options(warn = -1)
 
 ```
@@ -516,7 +489,6 @@ brier_calc <- function(covariate, outcome, count){
   print(score)
 }
 
-
 ```
 
 
@@ -525,7 +497,6 @@ brier_calc <- function(covariate, outcome, count){
 ```{r, echo=T, results='hide'}
 
 # Caret package to create 10 folds 
-
 d2 <- d
 k = 10
 kfold = k
@@ -533,32 +504,25 @@ d3 <- createFolds(d2$ID, k=kfold)
 
 
 # Make a vector to host Spearman correlations for ith fold 
-
 spearman_cor <- vector("numeric", 10)
 j = 0
 
 # Working loop to set ith fold to weight 0! 
-
 for(i in d3){
   j = j + 1
   
 # Part 1 - split data
-  
   test <- d2[i,]
   test$weight <- 0
   train <- d2[-i,]
   full <- rbind(test, train) # 10 dataframes where ith variants have weight = 0 
 
 # Part 2 - run EM algorithm
-  
 full$p_mean_w <- full$penetrance_lqt1
-
 covariates <- c("blast_pssm", "revel_score", "cardiacboost", "hm_peak", "lqt1_dist")
-
 delta <- 10
 count <- 0
 tmp <- full
-
 options(warn = -1)
 
 while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
@@ -586,15 +550,10 @@ while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
   }
   }
   new_mean <- (alpha_f + tmp$lqt1)/(alpha_f + beta_f + tmp$total_carriers)
-    
   full$prior_mean_w <- tmp$prior_mean_w
-  
   delta <- sum(abs(new_mean-tmp$p_mean_w))
-  
   tmp$p_mean_w <- new_mean
-  
   full$p_mean_w <- tmp$p_mean_w
-  
   print(delta)
 }
 
@@ -603,7 +562,6 @@ full2 <- full[full$weight == 0, ]
 # Crossfold Validation reported in text and Table 1 
 
 spearman_cor[j] <- weightedCorr(full2$lqt1_penetranceBayesian,full2$prior_mean_w,method='spearman',weights= (1-1/(0.01+full2$total_carriers)))
-
 print(spearman_cor)
 
 }
@@ -629,26 +587,21 @@ pearson_cor <- vector("numeric", 10)
 j = 0
 
 # Working loop to set ith fold to weight 0! 
-
 for(i in d3){
   j = j + 1
   
 # Part 1 - split data
-  
   test <- d2[i,]
   test$weight <- 0
   train <- d2[-i,]
   full <- rbind(test, train) # 10 dataframes where ith variants have weight = 0 
 
 # Part 2 - run EM algorithm
-  
 full$p_mean_w <- full$penetrance_lqt1
 covariates <- c("blast_pssm", "revel_score", "cardiacboost", "hm_peak", "lqt1_dist")
-
 delta <- 10
 count <- 0
 tmp <- full
-
 options(warn = -1)
 
 while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
@@ -686,7 +639,6 @@ while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
 full2 <- full[full$weight == 0, ]
 
 pearson_cor[j] <- weightedCorr(full2$lqt1_penetranceBayesian,full2$prior_mean_w,method='pearson',weights= (1-1/(0.01+full2$total_carriers)))
-
 print(pearson_cor)
 
 }
@@ -699,41 +651,33 @@ print(pearson_cor)
 ```{r, echo=T, results='hide'}
 
 # Caret package to create 10 folds 
-
 d2 <- d
 k = 10
 kfold = k
 d3 <- createFolds(d2$ID, k=kfold)
 
-
 # Make a vector to host Brier scores for the ith fold 
-
 brier_scores <- vector("numeric", 10)
 j = 0
 
 # Working loop to set ith fold to weight 0! 
-
 for(i in d3){
   j = j + 1
   
 # Part 1 - split data
-  
   test <- d2[i,]
   test$weight <- 0
   train <- d2[-i,]
   full <- rbind(test, train) # 10 dataframes where ith variants have weight = 0 
 
 # Part 2 - run EM algorithm
-  
 full$p_mean_w <- full$penetrance_lqt1
 covariates <- c("blast_pssm", "revel_score", "cardiacboost", "hm_peak", "lqt1_dist")
 
 # delta to 1 on 1/24/2021
-
 delta <- 10
 count <- 0
 tmp <- full
-
 options(warn = -1)
 
 while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
@@ -769,11 +713,8 @@ while(delta > 1 & count < 25){ # delta = 5 is roughly a change of 0.5%
 }
 
 full2 <- full[full$weight == 0, ]
-
 brier_scores[j] <- brier_calc(full2$lqt1_penetranceBayesian, full2$prior_mean_w, length(full2$lqt1_penetranceBayesian))
-  
 print(brier_scores)
-
 }
 
 ```
@@ -782,8 +723,7 @@ print(brier_scores)
 
 ```{r}
 
-# Data for Supplemental Table 2
-
+# Data for main text 
 rm(d)
 load('lit_plus_cohort_checkpoint_eval.RData')
 d <- d[d$total_carriers >0, ]
@@ -795,27 +735,22 @@ d_prior <- d[!is.na(d$prior_mean_w), ]
 brier_calc(d_prior$lqt1_penetranceBayesian, d_prior$prior_mean_w, length(d_prior$var))
 
 # Posterior - 0.010
-
 d_posterior <- d[!is.na(d$p_mean_w), ]
 brier_calc(d_posterior$lqt1_penetranceBayesian, d_posterior$p_mean_w, length(d_posterior$var))
 
 # Revel - 0.17
-
 d_revel <- d[!is.na(d$revel_score), ]
 brier_calc(d_revel$lqt1_penetranceBayesian, d_revel$revel_score, length(d_revel$var))
 
 # LQT1_dist - 0.062
-
 d_lqt1_dist <- d[!is.na(d$lqt1_dist), ]
 brier_calc(d_lqt1_dist$lqt1_penetranceBayesian, d_lqt1_dist$lqt1_dist, length(d_lqt1_dist$var))
 
 # Cardiac Boost - 0.19
-
 d_cardiacboost <- d[!is.na(d$cardiacboost), ]
 brier_calc(d_cardiacboost$lqt1_penetranceBayesian, d_cardiacboost$cardiacboost, length(d_cardiacboost$var))
 
 # Polyphen - 0.22
-
 d_pph2_prob <- d[!is.na(d$pph2_prob), ]
 brier_calc(d_pph2_prob$lqt1_penetranceBayesian, d_pph2_prob$pph2_prob, length(d_cardiacboost$var))
 
@@ -875,7 +810,7 @@ Observed diagnosis probability as the "true" diagnosis probability. The coverage
 
 ```{r}
 
-# Data for Supplementary Figure 2 
+# Data for Supplemental Figure 3
 
 d$alpha <- NULL
 d$beta <- NULL
