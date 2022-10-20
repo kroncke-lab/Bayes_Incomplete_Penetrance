@@ -428,4 +428,33 @@ sapply(0:30*50+1,function(x) plotg(x,x+49))
 ```
 
 
+The forest plots are pasted below. Black bars represent the Bayes Prior, and gold bars the Bayes Posterior. 
+Variant name is given to the left and the number of LQT1 affected / total heterozygote count is given above the dot indicating the posterior mean.
+
+![](images/Forest plot1-50pics.png)
+![](images/Forest plot51-100pics.png)
+![](images/Forest plot101-150pics.png)
+![](images/Forest plot151-200pics.png)
+![](images/Forest plot201-250pics.png)
+![](images/Forest plot251-300pics.png)
+![](images/Forest plot301-350pics.png)
+![](images/Forest plot351-400pics.png)
+![](images/Forest plot401-450pics.png)
+![](images/Forest plot451-500pics.png)
+![](images/Forest plot501-550pics.png)
+![](images/Forest plot551-600pics.png)
+![](images/Forest plot601-650pics.png)
+![](images/Forest plot651-700pics.png)
+![](images/Forest plot701-750pics.png)
+![](images/Forest plot751-800pics.png)
+![](images/Forest plot801-850pics.png)
+![](images/Forest plot851-900pics.png)
+![](images/Forest plot901-950pics.png)
+![](images/Forest plot951-1000pics.png)
+![](images/Forest plot1001-1050pics.png)
+![](images/Forest plot1051-1100pics.png)
+![](images/Forest plot1101-1150pics.png)
+![](images/Forest plot1151-1200pics.png)
+![](images/Forest plot1201-1250pics.png)
+![](images/Forest plot1251-1300pics.png)
 
