@@ -13,7 +13,6 @@ Bayes KCNQ1 Data Process – these scripts merge the cohort data with the curate
 Bayes KCNQ1 Model Evaluation – these scripts implement the prior and posterior probability derivations described in Supplemental Methods I. The significance of each covariate is calculated using Spearman and Pearson correlations. To assess the robustness of the method, we implemented 10-fold cross validation for Spearman, Pearson, and Brier scores as described in Supplemental Methods II. 
 
 Bayes KCNQ1 Model Application – these scripts construct the model and derive prior and posterior probabilities as described above. We then use scripts to generate the prior and posterior penetrance histograms, conduct analyses of variant penetrance with ClinVar annotations, export the penetrance data that is superimposed on structure, and make forest plots of prior and posterior probabilities for all variants, as described in Supplemental Methods IV. 
-![image](https://user-images.githubusercontent.com/74415865/202487582-b07d8d09-2210-44ac-b2b3-09d3c4138caa.png)
 
 
 A manuscript describing the results obtained from these investigations has been deposited at medRxiv: https://www.medrxiv.org/content/10.1101/2022.07.07.22277385v1
